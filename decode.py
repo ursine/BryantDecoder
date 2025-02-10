@@ -46,6 +46,77 @@ def checksum(data: bytes) -> int:
                 crc >>= 1
     return crc
 
+class Frame:
+    def __init__(self, data: List[int] = None):
+        self.dstAddr = 0
+        self.dstBus = 0
+        self.srcAddr = 0
+        self.srcBus = 0
+        self.dataLen = 0
+        self.op = 0
+        self.data = []
+
+        if data:
+            self.dstAddr = data[0]
+            self.dstBus = data[1]
+            self.srcAddr = data[2]
+            self.srcBus = data[3]
+            self.dataLen = data[4]
+            self.op = data[7]
+            self.data = data[8:]
+
+    @staticmethod
+    def decode_function(op):
+        decoder = {
+            0x02: "ACK02",
+            0x06: "ACK06",
+            0x0B: "READ",
+            0x0C: "WRITE",
+            0x10: "CNGTBN",
+            0x15: "NACK",
+            0x1E: "ALARM",
+            0x22: "OBJRD",
+            0x62: "RDVAR",
+            0x63: "FORCE (Write)",
+            0x64: "AUTO",
+            0x75: "LIST"
+        }
+        return decoder.get(op, "UNKNOWN")
+
+    @staticmethod
+    def decode_device(dev):
+        decoder = {
+            0x0E: "NIM?",
+            0x20: "Master Thermostat",
+            0x21: "Zone 1",
+            0x22: "Zone 2",
+            0x23: "Zone 3",
+            0x24: "Zone 4",
+            0x25: "Zone 5",
+            0x26: "Zone 6",
+            0x27: "Zone 7",
+            0x28: "Zone 8",
+            0x34: "Smart Sensor",
+            0x40: "Furnace (Indoor)",
+            0x42: "Fan Coil (Outdoor)",
+            0x50: "Heat Pump (Outdoor)",
+            0x51: "Heat Pump Greenspeed (Indoor)",
+            0x52: "Multistage Compressor (Indoor)",
+            0x60: "Damper Control",
+            0x65: "Damper Room Sensor",
+            0x80: "NIM",
+            0x92: "SAM",
+            0x96: "Damper?",
+            0xA0: "Training Tool",
+            0xF1: "Broadcast"
+        }
+        return decoder.get(dev, f"UNKNOWN ({dev})")
+
+    def __str__(self):
+        return f"Frame(dstAddr={self.decode_device(self.dstAddr)}, dstBus={self.dstBus}, srcAddr={self.srcAddr}, srcBus={self.srcBus}, dataLen={self.dataLen}, op={self.decode_function(self.op)}, data={bytes(self.data)})"
+
+    def __repr__(self):
+        return str(self)
 
 def decode(buf: List[int]):
     nonZero = False
@@ -64,21 +135,19 @@ def decode(buf: List[int]):
 
     l = len(newBuf) - 2
 
-    chsumbytes = newBuf[:l]
-
-    cksum = checksum(chsumbytes)
+    cksum = checksum(bytes(newBuf[:l]))
 
     chksum1 = newBuf[l]
     chksum2 = newBuf[l+1]
 
     ingestedChecksum = (chksum2 << 8) + chksum1
 
-    print(hex(cksum), hex(ingestedChecksum), chksum1, chksum2, chsumbytes)
-
     if cksum != ingestedChecksum:
         return False, None
 
-    return True, newBuf[:l]
+    res = Frame(newBuf[:l])
+
+    return True, res
 
 
 # func (f *Frame) decode(buf []byte) bool {
@@ -146,6 +215,6 @@ def find_frames(inBuf: List[int]):
 newByteList = byteList
 while len(newByteList) > 10:
     found, frame, newByteList = find_frames(newByteList)
-    print(found, frame, newByteList)
+    print(found, frame)
 
 
