@@ -110,7 +110,8 @@ class Frame:
             0xA0: "Training Tool",
             0xF1: "Broadcast"
         }
-        return decoder.get(dev, f"UNKNOWN ({dev})")
+        out = decoder.get(dev, "UNKNOWN")
+        return f"{out} ({dev})"
 
     def __str__(self):
         return f"Frame(dstAddr={self.decode_device(self.dstAddr)}, dstBus={self.dstBus}, srcAddr={self.srcAddr}, srcBus={self.srcBus}, dataLen={self.dataLen}, op={self.decode_function(self.op)}, data={bytes(self.data)})"
