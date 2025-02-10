@@ -119,7 +119,7 @@ try:
         #if data:
         #    # Print the raw bytes and also a hex representation.
         #    print(f"Received {len(message)} bytes: {data}")
-        print("Hex:", data.hex())
+        print("Hex:", bytes(data).hex())
         #    # Optionally, sleep briefly to avoid a busy loop.
         #    time.sleep(0.01)
 except KeyboardInterrupt:
