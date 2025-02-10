@@ -140,18 +140,12 @@ def find_frames(inBuf: List[int]):
     return False, [], buf
 
 
-print(decode(VALID1))
-print(decode(VALID2))
-
-sys.exit(1)
-
+#print(decode(VALID1))
+#print(decode(VALID2))
 
 newByteList = byteList
-while len(newByteList) > 11:
+while len(newByteList) > 10:
     found, frame, newByteList = find_frames(newByteList)
     print(found, frame, newByteList)
-    if found:
-        print("Found a frame")
-        os.exit(1)
 
 
