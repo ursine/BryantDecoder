@@ -215,6 +215,6 @@ def find_frames(inBuf: List[int]):
 newByteList = byteList
 while len(newByteList) > 10:
     found, frame, newByteList = find_frames(newByteList)
-    print(found, frame)
+    print(found, frame, newByteList)
 
 
