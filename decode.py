@@ -98,6 +98,7 @@ class Frame:
             0x50: "Heat Pump (Outdoor)",
             0x51: "Heat Pump Greenspeed (Indoor)",
             0x52: "Multistage Compressor (Indoor)",
+            0x56: "Heat Pump?",
             0x60: "Damper Control",
             0x65: "Damper Room Sensor",
             0x80: "NIM",
@@ -107,7 +108,7 @@ class Frame:
             0xF1: "Broadcast"
         }
         out = decoder.get(dev, "UNKNOWN")
-        return f"{out} ({dev})"
+        return f"{out} ({hex(dev)})"
 
     def __str__(self):
         prefix = (f"Frame(dstAddr={self.decode_device(self.dstAddr)}, dstBus={self.dstBus}, "
@@ -116,7 +117,7 @@ class Frame:
 
         extra = ""
         if self.op == 0x0B:
-            register = (self.data[2] << 8) + self.data[1]
+            register = (self.data[1] << 8) + self.data[2]
             extra = f"READ REGISTER: {hex(register)}"
         return f"{prefix} -- {extra}"
 
