@@ -218,9 +218,9 @@ def find_frames(inBuf: List[int]):
 #print(decode(VALID1))
 #print(decode(VALID2))
 
-newByteList = byteList
-while len(newByteList) > 10:
-    found, frame, newByteList = find_frames(newByteList)
-    print(found, frame)
+#newByteList = byteList
+#while len(newByteList) > 10:
+#    found, frame, newByteList = find_frames(newByteList)
+#    print(found, frame)
 
 

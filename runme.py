@@ -3,16 +3,18 @@
 import os
 import termios
 import time
+from typing import List
+
+from decode import find_frames
 
 PORT = "/dev/ttyUSB0"
 BAUD = 38400
 BAUD_CONST = termios.B38400
 
-
 try:
     fd = os.open(PORT, os.O_RDWR | os.O_NOCTTY)
 except OSError as e:
-    raise RuntimeError(f"Could not open port {port}: {e}")
+    raise RuntimeError(f"Could not open port {PORT}: {e}")
 
 new_attrs = termios.tcgetattr(fd)
 
@@ -48,33 +50,8 @@ new_attrs[6][termios.VTIME] = 0
 # Apply the settings immediately.
 termios.tcsetattr(fd, termios.TCSANOW, new_attrs)
 
-
-def crc16(data: bytes, poly: int = 0x8005, init: int = 0) -> int:
-    """
-    Compute a CRC16 using the polynomial 0x8005 in non-reflected mode.
-
-    Args:
-        data (bytes): Input data to compute the CRC on.
-        poly (int): Polynomial to use (default 0x8005).
-        init (int): Initial CRC value (default 0).
-
-    Returns:
-        int: The computed CRC16 value.
-    """
-    crc = init
-    for byte in data:
-        # Bring the byte into the high-order 8 bits of the 16-bit CRC.
-        crc ^= byte << 8
-        for _ in range(8):
-            if crc & 0x8000:  # If the uppermost bit is set...
-                crc = ((crc << 1) ^ poly) & 0xFFFF  # Shift left and XOR with poly.
-            else:
-                crc = (crc << 1) & 0xFFFF  # Otherwise, just shift left.
-    return crc
-
-
 inMessage = False
-inQueue = []
+inQueue: List[bytes] = []
 
 message = []
 
@@ -86,42 +63,10 @@ try:
 
         inQueue.extend(data)
 
-        #if len(inQueue) < 10:
-        #    continue
+        while len(inQueue) > 10:
+            found, frame, newByteList = find_frames(newByteList)
+            print(found, frame)
 
-#        val = 0
-#        count = 0
-#        while val == 0:
-#            val = inQueue.pop(0)
-#            count+=1
-
-#        print(f"Skipped {count} zeroes") 
-            
-#        destAddr = val
-#        destBus = inQueue.pop(0)
-#        srcAddr = inQueue.pop(0)
-#        srcBus = inQueue.pop(0)
-#        length = inQueue.pop(0)
-#        pid = inQueue.pop(0)
-#        ext = inQueue.pop(0)
-#        function = inQueue.pop(0)
-#        data = inQueue[:length]
-#        checksum = inQueue.pop(0) * 256 + inQueue.pop(1)
-
-#        checksumCheck = [destAddr, destBus, srcAddr, srcBus, length, pid, ext, function]
-#        checksumCheck.extend(data)
-
-#        crc = crc16(bytes(checksumCheck))
-          
- #       print(f"Data: {destAddr} {destBus} {srcAddr} {srcBus} {length} {pid} {ext} {function} {checksum}=={crc}")
-
-        
-        #if data:
-        #    # Print the raw bytes and also a hex representation.
-        #    print(f"Received {len(message)} bytes: {data}")
-        print("Hex:", bytes(data).hex())
-        #    # Optionally, sleep briefly to avoid a busy loop.
-        #    time.sleep(0.01)
 except KeyboardInterrupt:
     print("\nKeyboardInterrupt received. Exiting read loop.")
 
