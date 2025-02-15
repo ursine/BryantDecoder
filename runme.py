@@ -66,7 +66,10 @@ try:
         found, frame, inQueue = find_frames(inQueue)
 
         if found:
-            print(found, frame, inQueue)
+            print(found, frame)
+            fdata = frame.data
+            if len(fdata)>3 and fdata[0]==0 and fdata[1]==0x01 and fdata[2]==0x04:
+                print("INFO FRAME!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
 except KeyboardInterrupt:
     print("\nKeyboardInterrupt received. Exiting read loop.")
