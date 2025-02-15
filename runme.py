@@ -51,7 +51,7 @@ new_attrs[6][termios.VTIME] = 0
 termios.tcsetattr(fd, termios.TCSANOW, new_attrs)
 
 inMessage = False
-inQueue: List[bytes] = []
+inQueue: List[int] = []
 
 message = []
 
@@ -61,10 +61,10 @@ try:
         # os.read blocks until at least 1 byte is available because VMIN is set to 1.
         data = os.read(fd, 1024)  # Read up to 1024 bytes.
 
-        inQueue.extend(data)
+        inQueue.extend([int(x) for x in data])
 
         while len(inQueue) > 10:
-            found, frame, newByteList = find_frames(newByteList)
+            found, frame, inQueue = find_frames(inQueue)
             print(found, frame)
 
 except KeyboardInterrupt:
