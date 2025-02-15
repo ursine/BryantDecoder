@@ -52,6 +52,7 @@ termios.tcsetattr(fd, termios.TCSANOW, new_attrs)
 
 inMessage = False
 inQueue: List[int] = []
+found = True
 
 message = []
 
