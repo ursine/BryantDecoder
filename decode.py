@@ -7,7 +7,7 @@ HEX_BYTES = "00560120010300000b0007042496200156010e00000600070400000000000000000
 
 RAW_BYTES = bytes.fromhex(HEX_BYTES)
 
-#byteList = [x for x in RAW_BYTES]
+byteList = [x for x in RAW_BYTES]
 
 
 def checksum(data: bytes) -> int:
@@ -38,6 +38,28 @@ def checksum(data: bytes) -> int:
             else:
                 crc >>= 1
     return crc
+
+class BlockGrabber:
+    def __init__(self, data):
+        self.data = data
+
+    def get_next(self, total):
+        to_ret = self.data[:total]
+        self.data = self.data[total:]
+        return to_ret
+
+class InfoFrame:
+
+    def __init__(self, data):
+        self.data = BlockGrabber(data)
+        #b'VARIABLE SPEED FAN COIL \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00CESR131329-21  \x00FE4BNBD60L00EAAA\x00\x00\x00\x003323M044475 1024F05922\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        self.module_name = self.data.get_next(48)
+        self.firmware_version = self.data.get_next(16)
+        self.model_number = self.data.get_next(20)
+        self.serial_number = self.data.get_next(36)
+
+    def __str__(self):
+        return f"InfoFrame(module_name={self.module_name}, firmware_version={self.firmware_version}, model_number={self.model_number}, serial_number={self.serial_number})"
 
 class Frame:
     def __init__(self, data: List[int] = None):
@@ -153,36 +175,6 @@ def decode(buf: List[int]):
     return True, res
 
 
-# func (f *Frame) decode(buf []byte) bool {
-# 	nonzero := false
-# 	for _, c := range buf {
-# 		if c != 0 {
-# 			nonzero = true
-# 			break
-# 		}
-# 	}
-# 	if !nonzero {
-# 		return false
-# 	}
-#
-# 	l := len(buf) - 2
-#
-# 	cksum := checksum(buf[:l])
-# 	if !bytes.Equal(cksum, buf[l:]) {
-# 		return false
-# 	}
-#
-# 	f.dst = binary.BigEndian.Uint16(buf[0:2])
-# 	f.src = binary.BigEndian.Uint16(buf[2:4])
-# 	f.dataLen = buf[4]
-# 	// Not sure what bytes 5 and 6 are
-# 	f.op = buf[7]
-# 	f.data = append([]byte{}, buf[8:l]...)
-#
-# 	return true
-# }
-
-
 def find_frames(inBuf: List[int]):
     start = 0
 
@@ -201,8 +193,6 @@ def find_frames(inBuf: List[int]):
 
         success, the_frame = decode(possibleFrame)
 
-        #print("success", success, start, inBufLen-start)
-
         if not success:
             start+=1
             continue
@@ -211,5 +201,20 @@ def find_frames(inBuf: List[int]):
 
     return False, [], buf
 
+
+if __name__=="__main__":
+    while len(byteList)>10:
+        found, frame, byteList = find_frames(byteList)
+        if found:
+            if frame.op == 0x06:
+                table, data = frame.data[0:2], frame.data[3:]
+                print(frame)
+                print("ACK06", table, data)
+                if table[0] == 0x00 and table[1] == 0x01 and table[2] == 0x04:
+                    print(InfoFrame(frame.data))
+            else:
+                print(frame)
+        else:
+            break
 
 
