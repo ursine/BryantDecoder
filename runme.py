@@ -63,9 +63,10 @@ try:
 
         inQueue.extend([int(x) for x in data])
 
-        while len(inQueue) > 10:
-            found, frame, inQueue = find_frames(inQueue)
-            print(found, frame)
+        found, frame, inQueue = find_frames(inQueue)
+
+        if found:
+            print(found, frame, inQueue)
 
 except KeyboardInterrupt:
     print("\nKeyboardInterrupt received. Exiting read loop.")

@@ -10,7 +10,7 @@ HEX_BYTES = "00560120010300000b0007042496200156010e00000600070400000000000000000
 
 RAW_BYTES = bytes.fromhex(HEX_BYTES)
 
-byteList =
+#byteList = [x for x in RAW_BYTES]
 
 
 def checksum(data: bytes) -> int:
