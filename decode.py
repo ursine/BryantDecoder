@@ -3,6 +3,7 @@ import time
 from typing import List
 import os
 import sys
+import difflib
 import queue
 from typing import Dict
 
@@ -209,43 +210,50 @@ def find_frames(inBuf: List[int]):
 
     return False, [], buf
 
-# Data structure to hold in-flight requests. SRC ADDR, DST ADDR, REGISTER
-# MAP[SRC, MAP[DST, MAP[REGISTER, TIME_OF_REQUEST]
+def convert(srcv, dstv, rdata):
+    register = hex((rdata[1] << 8) + rdata[2])
+    src = Frame.decode_device(srcv)
+    dst = Frame.decode_device(dstv)
+    return src, dst, register
 
+def highlight_differences(list1, list2):
+    l1 = [str(x) for x in list1]
+    l2 = [str(x) for x in list2]
+    return list(difflib.ndiff(l1,l2))
+
+# Data structure to hold in-flight requests. SRC ADDR, DST ADDR, REGISTER
+#
 class InFlightRequests:
     def __init__(self):
         self.requests = {}
 
     def add_request(self, srcv, dstv, rdata):
-        register = hex((rdata[1] << 8) + rdata[2])
-        src = Frame.decode_device(srcv)
-        dst = Frame.decode_device(dstv)
+        src, dst, register =  convert(srcv, dstv, rdata)
         if src not in self.requests:
             self.requests[src] = {}
         if dst not in self.requests[src]:
             self.requests[src][dst] = {}
         if register not in self.requests[src][dst]:
-            self.requests[src][dst][register] = time.time()
-        else:
-            print("FLIGHT: DUPLICATE REQUEST",src,dst,register)
+            self.requests[src][dst][register] = "PLACEHOLDER"
+
+    def update_request(self, srcv, dstv, rdata, data):
+        src, dst, register = convert(srcv, dstv, rdata)
+        if src in self.requests and dst in self.requests[src] and register in self.requests[src][dst]:
+            res = self.requests[src][dst][register]
+            self.requests[src][dst][register]=data
+            if data!=res and res is not "PLACEHOLDER":
+                print("DIFFERENCES! ",highlight_differences(res, data))
 
     def remove_request(self, srcv, dstv, rdata):
-        register = hex((rdata[1] << 8) + rdata[2])
-        src = Frame.decode_device(srcv)
-        dst = Frame.decode_device(dstv)
+        src, dst, register =  convert(srcv, dstv, rdata)
         if src in self.requests and dst in self.requests[src] and register in self.requests[src][dst]:
             del self.requests[src][dst][register]
-            print("FLIGHT: REMOVED REQUEST",src,dst,register)
 
     def __str__(self):
         return str(self.requests)
 
     def __repr__(self):
         return str(self.requests)
-
-
-
-
 
 if __name__=="__main__":
 
@@ -262,8 +270,7 @@ if __name__=="__main__":
                 table, data = frame.data[0:3], frame.data[3:]
                 print(frame)
                 print("ACK06", table, data)
-                in_flight.remove_request(frame.dstAddr, frame.srcAddr, table)
-                print("OUT FLIGHT: ", in_flight)
+                in_flight.update_request(frame.dstAddr, frame.srcAddr, table, data)
                 if table[0] == 0x00 and table[1] == 0x01 and table[2] == 0x04:
                     print(InfoFrame(frame.data))
             else:
@@ -271,4 +278,4 @@ if __name__=="__main__":
 #        else:
 #            break
 
-
+    print(in_flight)
