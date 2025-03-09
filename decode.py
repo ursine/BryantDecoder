@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import time
 from typing import List
 import os
 import sys
@@ -51,15 +52,19 @@ class BlockGrabber:
         self.data = self.data[total:]
         return to_ret
 
+    def get_next_str(self, total):
+        val = self.get_next(total)
+        return ''.join(chr(x) for x in val if x!=0)
+
 class InfoFrame:
 
     def __init__(self, data):
         self.data = BlockGrabber(data)
         #b'VARIABLE SPEED FAN COIL \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00CESR131329-21  \x00FE4BNBD60L00EAAA\x00\x00\x00\x003323M044475 1024F05922\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        self.module_name = self.data.get_next(48)
-        self.firmware_version = self.data.get_next(16)
-        self.model_number = self.data.get_next(20)
-        self.serial_number = self.data.get_next(36)
+        self.module_name = self.data.get_next_str(48)
+        self.firmware_version = self.data.get_next_str(16)
+        self.model_number = self.data.get_next_str(20)
+        self.serial_number = self.data.get_next_str(36)
 
     def __str__(self):
         return f"InfoFrame(module_name={self.module_name}, firmware_version={self.firmware_version}, model_number={self.model_number}, serial_number={self.serial_number})"
@@ -139,8 +144,8 @@ class Frame:
 
         extra = ""
         if self.op == 0x0B:
-            register = (self.data[1] << 8) + self.data[2]
-            extra = f"READ REGISTER: {hex(register)}"
+            register = hex((self.data[1] << 8) + self.data[2])
+            extra = f"READ REGISTER: {register}"
         return f"{prefix} -- {extra}"
 
     def __repr__(self):
@@ -204,41 +209,66 @@ def find_frames(inBuf: List[int]):
 
     return False, [], buf
 
+# Data structure to hold in-flight requests. SRC ADDR, DST ADDR, REGISTER
+# MAP[SRC, MAP[DST, MAP[REGISTER, TIME_OF_REQUEST]
+
+class InFlightRequests:
+    def __init__(self):
+        self.requests = {}
+
+    def add_request(self, srcv, dstv, rdata):
+        register = hex((rdata[1] << 8) + rdata[2])
+        src = Frame.decode_device(srcv)
+        dst = Frame.decode_device(dstv)
+        if src not in self.requests:
+            self.requests[src] = {}
+        if dst not in self.requests[src]:
+            self.requests[src][dst] = {}
+        if register not in self.requests[src][dst]:
+            self.requests[src][dst][register] = time.time()
+        else:
+            print("FLIGHT: DUPLICATE REQUEST",src,dst,register)
+
+    def remove_request(self, srcv, dstv, rdata):
+        register = hex((rdata[1] << 8) + rdata[2])
+        src = Frame.decode_device(srcv)
+        dst = Frame.decode_device(dstv)
+        if src in self.requests and dst in self.requests[src] and register in self.requests[src][dst]:
+            del self.requests[src][dst][register]
+            print("FLIGHT: REMOVED REQUEST",src,dst,register)
+
+    def __str__(self):
+        return str(self.requests)
+
+    def __repr__(self):
+        return str(self.requests)
+
+
+
+
 
 if __name__=="__main__":
+
+    in_flight = InFlightRequests()
+
     while len(byteList)>10:
         found, frame, byteList = find_frames(byteList)
         if found:
-            rw = Frame.decode_function(frame.op)
-            if frame.op == 0x0B or frame.op == 0x0C:
-                the_src = q.get(frame.srcAddr, None)
-                if not the_src:
-                    the_src = dict()
-                    q[frame.srcAddr] = the_src
-                src_dest = the_src.get(frame.dstAddr, None)
-                if not src_dest:
-                    src_dest = dict()
-                    the_src[frame.dstAddr] = src_dest
-                queries = src_dest.get(rw, None)
-                if not queries:
-                    queries = queue.Queue()
-                    src_dest[rw] = queries
-
-                queries.put(frame)
-
-                print(q)
-
-            #if frame.op == 0x06:
-            #    table, data = frame.data[0:2], frame.data[3:]
-            #    print(frame)
-            #    if len(data)<3:
-            #        continue
-            #    print("ACK06", table, data)
-            #    if table[0] == 0x00 and table[1] == 0x01 and table[2] == 0x04:
-            #        print(InfoFrame(frame.data))
-            #else:
-            #    print(frame)
-        else:
-            break
+            fdl = len(frame.data)
+            if frame.op == 0x0B and fdl>1:
+                in_flight.add_request(frame.srcAddr, frame.dstAddr, frame.data)
+                print("IN FLIGHT: ",in_flight)
+            if frame.op == 0x06 and fdl>1:
+                table, data = frame.data[0:3], frame.data[3:]
+                print(frame)
+                print("ACK06", table, data)
+                in_flight.remove_request(frame.dstAddr, frame.srcAddr, table)
+                print("OUT FLIGHT: ", in_flight)
+                if table[0] == 0x00 and table[1] == 0x01 and table[2] == 0x04:
+                    print(InfoFrame(frame.data))
+            else:
+                print(frame)
+#        else:
+#            break
 
 
