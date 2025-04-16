@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import time
+import curses
+from curses import wrapper
 from typing import List
 import os
 import sys
@@ -241,7 +243,7 @@ class InFlightRequests:
         if src in self.requests and dst in self.requests[src] and register in self.requests[src][dst]:
             res = self.requests[src][dst][register]
             self.requests[src][dst][register]=data
-            if data!=res and res is not "PLACEHOLDER":
+            if data!=res and res!="PLACEHOLDER":
                 print("DIFFERENCES! ",highlight_differences(res, data))
 
     def remove_request(self, srcv, dstv, rdata):
@@ -255,27 +257,31 @@ class InFlightRequests:
     def __repr__(self):
         return str(self.requests)
 
+def main(stdscr):
+    stdscr.clear()
+
 if __name__=="__main__":
+    wrapper(main)
 
-    in_flight = InFlightRequests()
-
-    while len(byteList)>10:
-        found, frame, byteList = find_frames(byteList)
-        if found:
-            fdl = len(frame.data)
-            if frame.op == 0x0B and fdl>1:
-                in_flight.add_request(frame.srcAddr, frame.dstAddr, frame.data)
-                print("IN FLIGHT: ",in_flight)
-            if frame.op == 0x06 and fdl>1:
-                table, data = frame.data[0:3], frame.data[3:]
-                print(frame)
-                print("ACK06", table, data)
-                in_flight.update_request(frame.dstAddr, frame.srcAddr, table, data)
-                if table[0] == 0x00 and table[1] == 0x01 and table[2] == 0x04:
-                    print(InfoFrame(frame.data))
-            else:
-                print(frame)
-#        else:
-#            break
-
-    print(in_flight)
+#     in_flight = InFlightRequests()
+#
+#     while len(byteList)>10:
+#         found, frame, byteList = find_frames(byteList)
+#         if found:
+#             fdl = len(frame.data)
+#             if frame.op == 0x0B and fdl>1:
+#                 in_flight.add_request(frame.srcAddr, frame.dstAddr, frame.data)
+#                 print("IN FLIGHT: ",in_flight)
+#             if frame.op == 0x06 and fdl>1:
+#                 table, data = frame.data[0:3], frame.data[3:]
+#                 print(frame)
+#                 print("ACK06", table, data)
+#                 in_flight.update_request(frame.dstAddr, frame.srcAddr, table, data)
+#                 if table[0] == 0x00 and table[1] == 0x01 and table[2] == 0x04:
+#                     print(InfoFrame(frame.data))
+#             else:
+#                 print(frame)
+# #        else:
+# #            break
+#
+#     print(in_flight)
